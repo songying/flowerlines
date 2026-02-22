@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://flowerlines.visionreactor.sg/sitemap.xml
