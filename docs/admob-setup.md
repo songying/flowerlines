@@ -276,4 +276,87 @@ Android SDK docs: https://developers.google.com/admob/android
 Test IDs:         https://developers.google.com/admob/ios/test-ads
 SKAdNetwork list: https://developers.google.com/admob/ios/privacy/skadnetwork
 UMP SDK (GDPR):   https://developers.google.com/admob/ios/privacy
+AdSense Console:  https://adsense.google.com
 ```
+
+---
+
+## Web Version (index.html) — Google AdSense
+
+The web game hosted on GitHub Pages uses **Google AdSense** (not AdMob) for display ads. AdSense is Google's web advertising product and requires a separate account from AdMob.
+
+### Ad Placement
+
+Two **160×600 "Wide Skyscraper"** ad columns are placed on the left and right sides of the game canvas. They are hidden automatically via CSS `@media` query on screens narrower than 1020px, so the game layout is never affected on mobile or small windows.
+
+```
+┌──────────┬───────────────────────────┬──────────┐
+│          │      🌸 Flower Lines 🌸    │          │
+│  160×600 │  ┌─────────────────────┐  │  160×600 │
+│  AdSense │  │    Game Canvas      │  │  AdSense │
+│    ad    │  │    634 × 564 px     │  │    ad    │
+│          │  └─────────────────────┘  │          │
+└──────────┴───────────────────────────┴──────────┘
+  hidden on screens < 1020px wide
+```
+
+### Step 1: Create a Google AdSense Account
+
+1. Go to **https://adsense.google.com**
+2. Sign in with a Google account
+3. Enter your website URL (e.g. `https://yourusername.github.io/flowerlines`)
+4. Select your country and agree to Terms of Service
+5. Add the AdSense verification `<script>` tag to `index.html` and wait for site approval (typically 1–3 days)
+
+> AdSense requires your site to have original content and comply with their policies before approval.
+
+### Step 2: Create Ad Units
+
+1. In AdSense console → **Ads → By ad unit → Display ads**
+2. Create two units (one for left column, one for right — or reuse the same unit ID in both slots)
+3. Ad size: **160 × 600** (Wide Skyscraper) or **Responsive**
+4. Copy the generated `data-ad-client` (Publisher ID) and `data-ad-slot` values
+
+### Step 3: Replace Placeholder Values in index.html
+
+Search for all occurrences of `ca-pub-XXXXXXXXXXXXXXXX` and `XXXXXXXXXX` in `index.html` and replace:
+
+```html
+<!-- AdSense script tag (near </body>) -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+   crossorigin="anonymous"></script>
+
+<!-- Each ad slot <ins> element -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:160px;height:600px"
+     data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+     data-ad-slot="XXXXXXXXXX"></ins>
+```
+
+Replace:
+- `ca-pub-XXXXXXXXXXXXXXXX` → your **Publisher ID** from AdSense (format: `ca-pub-1234567890123456`)
+- `data-ad-slot="XXXXXXXXXX"` → your **Ad Unit ID** (format: `1234567890`)
+
+There are **3 places** to replace: the `<script>` src URL, and the two `<ins>` elements (left + right columns).
+
+### Step 4: Push to GitHub Pages
+
+```bash
+git add index.html
+git commit -m "Add real AdSense publisher and ad unit IDs"
+git push origin main
+```
+
+GitHub Pages will redeploy automatically. Ads typically start appearing within a few hours of AdSense account approval.
+
+### AdSense vs AdMob Comparison
+
+| | AdSense (Web) | AdMob (iOS/Android) |
+|---|---|---|
+| Platform | Websites / GitHub Pages | Native mobile apps |
+| Account | adsense.google.com | admob.google.com |
+| Ad format | Display banners (160×600) | Interstitial (fullscreen) |
+| Integration | `<script>` + `<ins>` tags | SDK via CocoaPods / Gradle |
+| Revenue | CPM $0.50–$3 (varies) | CPM $1–$8 (varies) |
+
+> Both accounts can be linked to the same Google account for unified reporting in Google Ad Manager.
