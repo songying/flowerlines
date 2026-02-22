@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flower Lines</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a3a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    h1 {
+      color: #a5d6a7;
+      font-size: 26px;
+      margin-bottom: 14px;
+      letter-spacing: 0.15em;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    #gameCanvas {
+      display: block;
+      border: 3px solid #4caf50;
+      border-radius: 6px;
+      cursor: pointer;
+      max-width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    #instructions {
+      color: #81c784;
+      font-size: 13px;
+      margin-top: 12px;
+      text-align: center;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌸 Flower Lines 🌸</h1>
+  <canvas id="gameCanvas"></canvas>
+  <p id="instructions">Click a flower to select it, then click an empty cell to move &nbsp;·&nbsp; Line up 5 of the same color to score</p>
+  <script>
+  // ═══════════════════════════════════════════════════════════════
+  // CONSTANTS
+  // ═══════════════════════════════════════════════════════════════
+  const GRID_SIZE   = 9;
+  const CELL_SIZE   = 56;
+  const GRID_TOP    = 60;   // height of top score bar
+  const NUM_TYPES   = 7;
+  const LINE_MIN    = 5;
+  const SPAWN_COUNT = 3;
+  const FLOWER_R    = 20;   // flower radius on grid
+  const SIDEBAR_R   = 22;   // flower radius in sidebar
+
+  const GRID_W    = CELL_SIZE * GRID_SIZE; // 504 — grid area width
+  const SIDEBAR_X = GRID_W;               // 504 — sidebar starts here
+  const SIDEBAR_W = 130;                  // sidebar width
+  const CW = GRID_W + SIDEBAR_W;          // 634 — total canvas width
+  const CH = GRID_TOP + GRID_SIZE * CELL_SIZE; // 564 — total canvas height
+
+  // Canvas setup
+  const canvas = document.getElementById('gameCanvas');
+  canvas.width  = CW;
+  canvas.height = CH;
+  const ctx = canvas.getContext('2d');
+
+  // 7 flower colors
+  const COLORS = [
+    '#e53935', // 0 Red
+    '#fb8c00', // 1 Orange
+    '#fdd835', // 2 Yellow
+    '#43a047', // 3 Green
+    '#00acc1', // 4 Teal
+    '#1e88e5', // 5 Blue
+    '#8e24aa', // 6 Purple
+  ];
+
+  function darkenHex(hex, amount) {
+    let r = parseInt(hex.slice(1,3),16);
+    let g = parseInt(hex.slice(3,5),16);
+    let b = parseInt(hex.slice(5,7),16);
+    r = Math.round(r * (1 - amount));
+    g = Math.round(g * (1 - amount));
+    b = Math.round(b * (1 - amount));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  const DARK_COLORS = COLORS.map(c => darkenHex(c, 0.35));
+  const PETAL_COUNTS = [5, 6, 8, 4, 6, 5, 7];
+
+  // UI button rects (canvas coords)
+  const BTN = { x: 340, y: 12, w: 150, h: 36 }; // restart in score bar
+  const GOB = { x: 142, y: 360, w: 220, h: 50 }; // restart in game-over overlay
+
+  // ═══════════════════════════════════════════════════════════════
+  // GAME STATE
+  // ═══════════════════════════════════════════════════════════════
+  const state = {
+    board: null,            // [row][col]: null | 0-6
+    score: 0,
+    highScore: parseInt(localStorage.getItem('gardenHS') || '0'),
+    selected: null,         // {row, col} | null
+    validMoves: null,       // Set<"r,c"> from BFS | null
+    nextFlowers: [],        // [type0, type1, type2] — preview for next turn
+    animQueue: [],
+    phase: 'IDLE',          // IDLE | SELECTED | ANIMATING | GAMEOVER
+    pendingPhase: null,
+    eliminatingCells: null, // [{row,col,type}] during ELIMINATE anim
+    spawningCells: null,    // [{row,col,type}] during SPAWN anim
+    animStart: 0,
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // EASING & MATH
+  // ═══════════════════════════════════════════════════════════════
+  function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+  function easeOut(t)   { return 1 - (1-t)*(1-t); }
+  function elasticOut(t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return Math.pow(2, -10*t) * Math.sin((t - 0.075) * (2*Math.PI) / 0.3) + 1;
+  }
+  function lerp(a, b, t) { return a + (b-a)*t; }
+
+  function cellCX(col) { return col * CELL_SIZE + CELL_SIZE / 2; }
+  function cellCY(row) { return GRID_TOP + row * CELL_SIZE + CELL_SIZE / 2; }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FLOWER DRAWING
+  // ═══════════════════════════════════════════════════════════════
+  function drawFlower(cx, cy, type, r, alpha) {
+    if (alpha === undefined) alpha = 1;
+    if (r <= 0 || alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+
+    const n = PETAL_COUNTS[type];
+    const step = (Math.PI * 2) / n;
+    ctx.shadowColor = 'rgba(0,0,0,0.28)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = COLORS[type];
+    ctx.strokeStyle = DARK_COLORS[type];
+    ctx.lineWidth = 1.2;
+
+    for (let i = 0; i < n; i++) {
+      ctx.save();
+      ctx.rotate(step * i);
+      drawPetal(type, r);
+      ctx.restore();
+    }
+
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.strokeStyle = DARK_COLORS[type];
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = COLORS[type];
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawPetal(type, r) {
+    ctx.beginPath();
+    switch (type) {
+      case 0: // Red — 5 petals, classic teardrop
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo( r*0.55, -r*0.45,  0, -r);
+        ctx.quadraticCurveTo(-r*0.55, -r*0.45,  0,  0);
+        break;
+      case 1: // Orange — 6 petals, circle offset
+        ctx.arc(0, -r * 0.52, r * 0.38, 0, Math.PI * 2);
+        break;
+      case 2: // Yellow — 8 petals, slim elongated
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo( r*0.22, -r*0.5,  0, -r);
+        ctx.quadraticCurveTo(-r*0.22, -r*0.5,  0,  0);
+        break;
+      case 3: // Green — 4 petals, wide clover
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo( r*0.75, -r*0.1,  r*0.75, -r*0.9, 0, -r);
+        ctx.bezierCurveTo(-r*0.75, -r*0.9, -r*0.75, -r*0.1, 0,  0);
+        break;
+      case 4: // Teal — 6 petals, triangular star
+        ctx.moveTo(0, 0);
+        ctx.lineTo( r*0.22, -r*0.48);
+        ctx.lineTo(0, -r);
+        ctx.lineTo(-r*0.22, -r*0.48);
+        ctx.closePath();
+        break;
+      case 5: // Blue — 5 petals, wide teardrop
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo( r*0.72, -r*0.38,  0, -r);
+        ctx.quadraticCurveTo(-r*0.72, -r*0.38,  0,  0);
+        break;
+      case 6: // Purple — 7 petals, slim dagger
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo( r*0.28, -r*0.52,  0, -r);
+        ctx.quadraticCurveTo(-r*0.28, -r*0.52,  0,  0);
+        break;
+      default:
+        ctx.arc(0, -r*0.5, r*0.35, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BFS PATHFINDING
+  // ═══════════════════════════════════════════════════════════════
+  function bfsReachable(board, startRow, startCol) {
+    const visited = new Set([`${startRow},${startCol}`]);
+    const queue = [{row: startRow, col: startCol}];
+    const reachable = new Set();
+    while (queue.length) {
+      const {row, col} = queue.shift();
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const r = row+dr, c = col+dc;
+        if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) continue;
+        const key = `${r},${c}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        if (board[r][c] === null) { reachable.add(key); queue.push({row: r, col: c}); }
+      }
+    }
+    return reachable;
+  }
+
+  function findPath(board, fromRow, fromCol, toRow, toCol) {
+    const parent = {[`${fromRow},${fromCol}`]: null};
+    const queue = [{row: fromRow, col: fromCol}];
+    while (queue.length) {
+      const {row, col} = queue.shift();
+      if (row === toRow && col === toCol) {
+        const path = [];
+        let key = `${toRow},${toCol}`;
+        while (key !== null) {
+          const [r, c] = key.split(',').map(Number);
+          path.unshift({row: r, col: c});
+          key = parent[key];
+        }
+        return path;
+      }
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const r = row+dr, c = col+dc;
+        if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) continue;
+        const key = `${r},${c}`;
+        if (key in parent) continue;
+        if (board[r][c] === null) { parent[key] = `${row},${col}`; queue.push({row: r, col: c}); }
+      }
+    }
+    return null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LINE DETECTION
+  // ═══════════════════════════════════════════════════════════════
+  function findLines(board) {
+    const hits = new Set();
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        if (board[row][col] === null) continue;
+        const type = board[row][col];
+        for (const [dr, dc] of dirs) {
+          const pr = row-dr, pc = col-dc;
+          if (pr >= 0 && pr < GRID_SIZE && pc >= 0 && pc < GRID_SIZE &&
+              board[pr][pc] === type) continue;
+          const run = [];
+          let r = row, c = col;
+          while (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE && board[r][c] === type) {
+            run.push({row: r, col: c, type}); r += dr; c += dc;
+          }
+          if (run.length >= LINE_MIN) run.forEach(cell => hits.add(`${cell.row},${cell.col}`));
+        }
+      }
+    }
+    return [...hits].map(key => {
+      const [row, col] = key.split(',').map(Number);
+      return {row, col, type: board[row][col]};
+    });
+  }
+
+  function calcScore(n) {
+    if (n < LINE_MIN) return 0;
+    return 10 + (n - LINE_MIN) * 5;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BOARD HELPERS
+  // ═══════════════════════════════════════════════════════════════
+  function emptyCells() {
+    const cells = [];
+    for (let r = 0; r < GRID_SIZE; r++)
+      for (let c = 0; c < GRID_SIZE; c++)
+        if (state.board[r][c] === null) cells.push({row: r, col: c});
+    return cells;
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length-1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function genNextFlowers() {
+    return Array.from({length: SPAWN_COUNT}, () => Math.floor(Math.random() * NUM_TYPES));
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GAME INIT / RESTART
+  // ═══════════════════════════════════════════════════════════════
+  function initGame() {
+    state.board = Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(null));
+    state.score = 0;
+    state.selected = null;
+    state.validMoves = null;
+    state.animQueue = [];
+    state.phase = 'IDLE';
+    state.pendingPhase = null;
+    state.eliminatingCells = null;
+    state.spawningCells = null;
+    state.nextFlowers = genNextFlowers();
+
+    // Place 3 random flowers at start
+    const slots = shuffle(emptyCells()).slice(0, 3);
+    slots.forEach(({row, col}) => {
+      state.board[row][col] = Math.floor(Math.random() * NUM_TYPES);
+    });
+  }
+
+  function saveHS() {
+    if (state.score > state.highScore) {
+      state.highScore = state.score;
+      localStorage.setItem('gardenHS', state.highScore);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TURN FLOW
+  // ═══════════════════════════════════════════════════════════════
+  function initiateMove(fromRow, fromCol, toRow, toCol) {
+    const path = findPath(state.board, fromRow, fromCol, toRow, toCol);
+    if (!path) return;
+
+    const type = state.board[fromRow][fromCol];
+    state.board[fromRow][fromCol] = null;
+    state.selected = null;
+    state.validMoves = null;
+    state.phase = 'ANIMATING';
+    state.pendingPhase = 'POST_MOVE';
+
+    pushAnim({
+      kind: 'MOVE', type, path, toRow, toCol,
+      duration: Math.max(300, path.length * 55),
+    });
+  }
+
+  function pushAnim(anim) {
+    state.animQueue.push(anim);
+    if (state.animQueue.length === 1) state.animStart = performance.now();
+  }
+
+  function onAnimDone(ts) {
+    const done = state.animQueue.shift();
+    if (done.kind === 'MOVE') {
+      state.board[done.toRow][done.toCol] = done.type;
+    } else if (done.kind === 'ELIMINATE') {
+      state.eliminatingCells = null;
+    } else if (done.kind === 'SPAWN') {
+      state.spawningCells = null;
+    }
+
+    if (state.animQueue.length > 0) {
+      state.animStart = ts;
+      return;
+    }
+    advancePhase(ts);
+  }
+
+  function advancePhase(ts) {
+    if (state.pendingPhase === 'POST_MOVE') {
+      const lines = findLines(state.board);
+      if (lines.length > 0) applyEliminate(lines, 'POST_ELIMINATE_NO_SPAWN', ts);
+      else doSpawn(ts);
+    } else if (state.pendingPhase === 'POST_ELIMINATE_NO_SPAWN') {
+      state.phase = 'IDLE';
+      state.pendingPhase = null;
+    } else if (state.pendingPhase === 'POST_SPAWN') {
+      const lines = findLines(state.board);
+      if (lines.length > 0) applyEliminate(lines, 'POST_ELIMINATE_AFTER_SPAWN', ts);
+      else finishTurn();
+    } else if (state.pendingPhase === 'POST_ELIMINATE_AFTER_SPAWN') {
+      finishTurn();
+    }
+  }
+
+  function applyEliminate(lines, nextPending, ts) {
+    state.score += calcScore(lines.length);
+    saveHS();
+    lines.forEach(({row, col}) => { state.board[row][col] = null; });
+    state.eliminatingCells = lines;
+    state.pendingPhase = nextPending;
+    pushAnim({kind: 'ELIMINATE', cells: lines, duration: 450});
+    state.animStart = ts;
+  }
+
+  function doSpawn(ts) {
+    const slots = shuffle(emptyCells()).slice(0, SPAWN_COUNT);
+    if (slots.length === 0) { finishTurn(); return; }
+
+    const spawnCells = slots.map((cell, i) => ({
+      row: cell.row, col: cell.col,
+      type: state.nextFlowers[i % state.nextFlowers.length],
+    }));
+    spawnCells.forEach(({row, col, type}) => { state.board[row][col] = type; });
+    state.nextFlowers = genNextFlowers();      // refresh preview
+    state.spawningCells = spawnCells;
+    state.pendingPhase = 'POST_SPAWN';
+    pushAnim({kind: 'SPAWN', cells: spawnCells, duration: 400});
+    state.animStart = ts;
+  }
+
+  function finishTurn() {
+    saveHS();
+    state.phase = emptyCells().length === 0 ? 'GAMEOVER' : 'IDLE';
+    state.pendingPhase = null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER HELPERS
+  // ═══════════════════════════════════════════════════════════════
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════
+  function render(ts) {
+    ctx.clearRect(0, 0, CW, CH);
+
+    drawSidebar(ts);          // right panel (drawn first, under everything)
+    drawGrid();
+    drawHighlights();
+
+    const animKeys = getAnimatingKeys();
+    drawStaticFlowers(animKeys);
+    drawAnimFrame(ts);
+    drawSelectedMarker(ts);
+    drawScoreBar();
+
+    if (state.phase === 'GAMEOVER') drawGameOver();
+  }
+
+  function getAnimatingKeys() {
+    const keys = new Set();
+    if (state.eliminatingCells) state.eliminatingCells.forEach(c => keys.add(`${c.row},${c.col}`));
+    if (state.spawningCells)    state.spawningCells.forEach(c => keys.add(`${c.row},${c.col}`));
+    return keys;
+  }
+
+  function drawGrid() {
+    const bg = ctx.createLinearGradient(0, GRID_TOP, 0, GRID_TOP + GRID_SIZE * CELL_SIZE);
+    bg.addColorStop(0, '#dcedc8');
+    bg.addColorStop(1, '#c5e1a5');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, GRID_TOP, GRID_W, GRID_SIZE * CELL_SIZE);
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const x = c * CELL_SIZE, y = GRID_TOP + r * CELL_SIZE;
+        if ((r+c) % 2 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.22)';
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        }
+        ctx.strokeStyle = 'rgba(130,180,120,0.55)';
+        ctx.lineWidth = 0.7;
+        ctx.strokeRect(x+0.35, y+0.35, CELL_SIZE-0.7, CELL_SIZE-0.7);
+      }
+    }
+  }
+
+  function drawHighlights() {
+    if (!state.validMoves) return;
+    state.validMoves.forEach(key => {
+      const [r, c] = key.split(',').map(Number);
+      ctx.fillStyle = 'rgba(255, 230, 50, 0.40)';
+      ctx.fillRect(c*CELL_SIZE+1, GRID_TOP+r*CELL_SIZE+1, CELL_SIZE-2, CELL_SIZE-2);
+      ctx.fillStyle = 'rgba(200,170,0,0.25)';
+      ctx.beginPath();
+      ctx.arc(cellCX(c), cellCY(r), 4, 0, Math.PI*2);
+      ctx.fill();
+    });
+  }
+
+  function drawStaticFlowers(animKeys) {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const type = state.board[r][c];
+        if (type === null) continue;
+        if (animKeys.has(`${r},${c}`)) continue;
+        if (state.selected && state.selected.row === r && state.selected.col === c) continue;
+        drawFlower(cellCX(c), cellCY(r), type, FLOWER_R);
+      }
+    }
+  }
+
+  function drawSelectedMarker(ts) {
+    if (!state.selected) return;
+    const {row, col} = state.selected;
+    if (state.board[row][col] === null) return;
+    const type = state.board[row][col];
+    const pulse = Math.sin(ts / 180);
+    const cx = cellCX(col), cy = cellCY(row);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,100,0.9)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = 'rgba(255,230,0,0.8)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(cx, cy, FLOWER_R + 7 + pulse * 3, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+
+    drawFlower(cx, cy, type, FLOWER_R * (1 + pulse * 0.07));
+  }
+
+  function drawAnimFrame(ts) {
+    if (state.animQueue.length === 0) return;
+
+    const anim = state.animQueue[0];
+    const rawT = Math.min((ts - state.animStart) / anim.duration, 1.0);
+
+    if (anim.kind === 'MOVE') {
+      const t = easeInOut(rawT);
+      const path = anim.path;
+      const segs = path.length - 1;
+      let x, y;
+      if (segs <= 0) {
+        x = cellCX(path[0].col); y = cellCY(path[0].row);
+      } else {
+        const rawIdx = t * segs;
+        const si = Math.min(Math.floor(rawIdx), segs - 1);
+        const from = path[si], to = path[si+1];
+        x = lerp(cellCX(from.col), cellCX(to.col), rawIdx - si);
+        y = lerp(cellCY(from.row), cellCY(to.row), rawIdx - si);
+      }
+      drawFlower(x, y, anim.type, FLOWER_R);
+
+    } else if (anim.kind === 'ELIMINATE') {
+      const t = easeOut(rawT);
+      if (state.eliminatingCells) {
+        state.eliminatingCells.forEach(({row, col, type}) => {
+          drawFlower(cellCX(col), cellCY(row), type, FLOWER_R * (1-t), 1-t);
+        });
+      }
+
+    } else if (anim.kind === 'SPAWN') {
+      const t = elasticOut(rawT);
+      if (state.spawningCells) {
+        state.spawningCells.forEach(({row, col, type}) => {
+          drawFlower(cellCX(col), cellCY(row), type, FLOWER_R * t, Math.min(1, rawT * 4));
+        });
+      }
+    }
+
+    if (rawT >= 1.0) onAnimDone(ts);
+  }
+
+  function drawScoreBar() {
+    const grad = ctx.createLinearGradient(0, 0, 0, GRID_TOP);
+    grad.addColorStop(0, '#2e7d32');
+    grad.addColorStop(1, '#1b5e20');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, SIDEBAR_X, GRID_TOP); // only grid-width, not into sidebar
+
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 19px Arial';
+    ctx.fillText(`Score: ${state.score}`, 16, 30);
+
+    ctx.fillStyle = '#a5d6a7';
+    ctx.font = '15px Arial';
+    ctx.fillText(`Best: ${state.highScore}`, 160, 30);
+
+    // Restart button
+    ctx.fillStyle = '#43a047';
+    roundRect(BTN.x, BTN.y, BTN.w, BTN.h, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#81c784';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('New Game', BTN.x + BTN.w/2, BTN.y + BTN.h/2);
+    ctx.textAlign = 'left';
+  }
+
+  // ───────────────────────────────────────────────────────────────
+  // SIDEBAR — right panel showing next-turn flower preview
+  // ───────────────────────────────────────────────────────────────
+  function drawSidebar(ts) {
+    const scx = SIDEBAR_X + SIDEBAR_W / 2; // center-x of sidebar
+
+    // Background
+    const grad = ctx.createLinearGradient(SIDEBAR_X, 0, SIDEBAR_X + SIDEBAR_W, 0);
+    grad.addColorStop(0, '#163516');
+    grad.addColorStop(1, '#1e4d1e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(SIDEBAR_X, 0, SIDEBAR_W, CH);
+
+    // Separator line between grid and sidebar
+    ctx.strokeStyle = 'rgba(76,175,80,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(SIDEBAR_X, 0);
+    ctx.lineTo(SIDEBAR_X, CH);
+    ctx.stroke();
+
+    // ── Title area ──
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(SIDEBAR_X, 0, SIDEBAR_W, GRID_TOP);
+
+    ctx.fillStyle = '#a5d6a7';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Next Turn', scx, GRID_TOP / 2);
+
+    // ── Flower preview cards ──
+    // Three evenly-spaced slots below the title bar
+    const slotH = (CH - GRID_TOP) / 3;
+
+    state.nextFlowers.forEach((type, i) => {
+      const slotY = GRID_TOP + i * slotH;
+      const cy = slotY + slotH / 2;
+
+      // Card background
+      const isHighlighted = false; // future: could highlight matching colors on board
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      roundRect(SIDEBAR_X + 8, slotY + 8, SIDEBAR_W - 16, slotH - 16, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(76,175,80,0.25)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Flower number badge
+      ctx.fillStyle = 'rgba(165,214,167,0.35)';
+      ctx.beginPath();
+      ctx.arc(SIDEBAR_X + 18, slotY + 18, 9, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#c8e6c9';
+      ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(i + 1, SIDEBAR_X + 18, slotY + 18);
+
+      // The flower itself — gentle float animation
+      const floatY = Math.sin(ts / 900 + i * 2.1) * 4;
+      drawFlower(scx, cy + floatY, type, SIDEBAR_R);
+
+      // Color name label
+      const colorNames = ['Red', 'Orange', 'Yellow', 'Green', 'Teal', 'Blue', 'Purple'];
+      ctx.fillStyle = COLORS[type];
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(colorNames[type], scx, slotY + slotH - 14);
+    });
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function drawGameOver() {
+    // Overlay over grid area only (sidebar stays visible)
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, 0, SIDEBAR_X, CH);
+
+    // Panel
+    const panelX = 40, panelW = SIDEBAR_X - 80;
+    ctx.fillStyle = 'rgba(27,94,32,0.97)';
+    roundRect(panelX, 155, panelW, 300, 16);
+    ctx.fill();
+    ctx.strokeStyle = '#4caf50';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const cx = SIDEBAR_X / 2;
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 34px Arial';
+    ctx.fillText('Game Over', cx, 215);
+
+    ctx.font = '22px Arial';
+    ctx.fillStyle = '#a5d6a7';
+    ctx.fillText(`Final Score: ${state.score}`, cx, 268);
+
+    ctx.fillStyle = '#ffd54f';
+    ctx.fillText(`Best Score: ${state.highScore}`, cx, 310);
+
+    ctx.fillStyle = '#43a047';
+    roundRect(GOB.x, GOB.y, GOB.w, GOB.h, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#81c784';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText('Play Again', cx, GOB.y + GOB.h/2 + 1);
+
+    ctx.textAlign = 'left';
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // INPUT
+  // ═══════════════════════════════════════════════════════════════
+  canvas.addEventListener('click', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const px = (e.clientX - rect.left) * (CW / rect.width);
+    const py = (e.clientY - rect.top)  * (CH / rect.height);
+
+    // Ignore sidebar clicks
+    if (px >= SIDEBAR_X) return;
+
+    // Score bar
+    if (py < GRID_TOP) {
+      if (px >= BTN.x && px <= BTN.x+BTN.w && py >= BTN.y && py <= BTN.y+BTN.h) initGame();
+      return;
+    }
+
+    // Game over overlay (click restart button)
+    if (state.phase === 'GAMEOVER') {
+      if (px >= GOB.x && px <= GOB.x+GOB.w && py >= GOB.y && py <= GOB.y+GOB.h) initGame();
+      return;
+    }
+
+    if (state.phase === 'ANIMATING') return;
+
+    // Grid
+    if (py >= GRID_TOP && py < GRID_TOP + GRID_SIZE * CELL_SIZE) {
+      const col = Math.floor(px / CELL_SIZE);
+      const row = Math.floor((py - GRID_TOP) / CELL_SIZE);
+      if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE) return;
+      handleClick(row, col);
+    }
+  });
+
+  function handleClick(row, col) {
+    const type = state.board[row][col];
+    if (type !== null) {
+      if (state.selected && state.selected.row === row && state.selected.col === col) {
+        state.selected = null; state.validMoves = null; state.phase = 'IDLE';
+      } else {
+        state.selected = {row, col};
+        state.validMoves = bfsReachable(state.board, row, col);
+        state.phase = 'SELECTED';
+      }
+    } else if (state.phase === 'SELECTED') {
+      const key = `${row},${col}`;
+      if (state.validMoves && state.validMoves.has(key)) {
+        initiateMove(state.selected.row, state.selected.col, row, col);
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GAME LOOP & START
+  // ═══════════════════════════════════════════════════════════════
+  function gameLoop(ts) {
+    render(ts);
+    requestAnimationFrame(gameLoop);
+  }
+
+  initGame();
+  requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
