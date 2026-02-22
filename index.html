@@ -43,6 +43,7 @@
   <h1>🌸 Flower Lines 🌸</h1>
   <canvas id="gameCanvas"></canvas>
   <p id="instructions">Click a flower to select it, then click an empty cell to move &nbsp;·&nbsp; Line up 5 of the same color to score</p>
+  <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
   <script>
   // ═══════════════════════════════════════════════════════════════
   // CONSTANTS
@@ -803,6 +804,16 @@
     render(ts);
     requestAnimationFrame(gameLoop);
   }
+
+  // Start BGM on first user interaction (browser autoplay policy)
+  const bgm = document.getElementById('bgm');
+  function startBGM() {
+    bgm.play().catch(() => {});
+    document.removeEventListener('click', startBGM);
+    document.removeEventListener('keydown', startBGM);
+  }
+  document.addEventListener('click', startBGM);
+  document.addEventListener('keydown', startBGM);
 
   initGame();
   requestAnimationFrame(gameLoop);
