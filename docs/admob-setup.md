@@ -12,16 +12,50 @@ Revenue model: you earn money each time a user views or clicks an ad. With a cas
 
 ---
 
+## Signing Up with a Company Account
+
+If you already have a **Google Play Developer business account**, you can use the same Google account to sign up for AdMob — no separate Google account is needed.
+
+### Personal vs. Business Account
+
+| | Personal Account | Business Account |
+|---|---|---|
+| Payment recipient | Your personal name | Your company name |
+| Multi-user access | Single user only | Multiple authorized users |
+| Requirements | ID, phone, bank account | Company name, authorized rep, D-U-N-S number, tax info |
+| Account type change | N/A | **Cannot be changed after creation** — choose carefully |
+
+> **Important:** Account type is permanent. If you select the wrong type, you must close the account and create a new one.
+
+### Required Materials for Company Registration
+
+| Item | Notes |
+|------|-------|
+| Company name | Must match Google Play registration exactly |
+| Authorized representative | Person authorized to sign agreements |
+| Company address | Registered business address |
+| Bank account | For receiving ad revenue (wire transfer supported) |
+| Tax information | Non-US companies submit non-US tax forms |
+| D-U-N-S number | Required for Google Play business accounts |
+
+### 2025 Policy Note
+
+Apps created after January 2025 that remain **unverified** will have limited ad serving, potentially reducing earnings. Complete company verification before publishing your app.
+
+---
+
 ## Step 1: Create an AdMob Account
 
 1. Go to **https://admob.google.com**
-2. Sign in with a Google account (create one if needed)
+2. Sign in with your **existing Google Play company account** (same Google account)
 3. Click **Get Started**
 4. Fill in your country and timezone
-5. Agree to the Terms of Service
+5. When prompted for account type, select **Business/Organization** (not Individual)
+6. Enter your **company name** and **authorized representative name**
+7. Agree to the Terms of Service
 
 > **Payment profile required to receive earnings:**
-> After signing up, go to **Payments → Add payment method** and enter your bank account or PayPal details. AdMob pays out monthly when your balance exceeds $100 USD.
+> After signing up, go to **Payments → Add payment method** and enter your bank account details. AdMob pays out monthly when your balance exceeds $100 USD via wire transfer.
 
 ---
 
@@ -195,7 +229,35 @@ override fun onCreate(savedInstanceState: Bundle?) {
 
 ---
 
-## Step 8: Before App Store / Play Store Submission
+## Step 8: Company Payment Profile & Tax Setup
+
+After creating your AdMob account with a Business/Organization account type:
+
+1. In AdMob console, go to **Payments → Payments profile**
+2. Verify your **organization name** and **authorized representative** are correct
+3. Add your **payment address** (company registered address)
+4. Submit **tax information**:
+   - Non-US companies (including China): submit non-US tax forms in the **Payments → Manage tax info** section
+   - Tax document review takes up to **7 business days**
+   - Documents must exactly match your payments profile information
+5. Add **bank account** for wire transfer (international wire supported)
+
+> AdMob pays out monthly. Minimum payout threshold: **$100 USD**.
+> For Chinese companies, international wire transfer (电汇) to your company bank account is the standard payout method.
+
+### Relationship Between Google Play and AdMob Payment Profiles
+
+Both use the same Google account but have **separate payment profiles**. You need to configure the payment profile independently in each console even though the login is the same.
+
+| | Google Play Console | AdMob Console |
+|---|---|---|
+| Login | Same Google account | Same Google account |
+| Payment profile | Set in Play Console | Set in AdMob separately |
+| Payout | App sales / subscriptions | Ad revenue |
+
+---
+
+## Step 9: Before App Store / Play Store Submission
 
 1. **Switch from test IDs to real IDs** in `AdManager.swift` / `AdManager.kt`
 2. **iOS App Store:** In your AdMob console, update the app listing to link to your App Store URL after publication
