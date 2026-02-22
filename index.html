@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Flower Lines — Free Browser Puzzle Game</title>
 
   <!-- SEO -->
@@ -54,7 +54,7 @@
   }
   </script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       background: #1a3a1a;
       display: flex;
@@ -64,6 +64,8 @@
       min-height: 100vh;
       font-family: Arial, sans-serif;
       gap: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
     /* Ad column — visible only when viewport is wide enough */
     .ad-col {
@@ -99,6 +101,9 @@
       cursor: pointer;
       max-width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      touch-action: none;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
     }
     #instructions {
       color: #81c784;
@@ -179,6 +184,47 @@
       inset: 0;
       background: rgba(0,0,0,0.45);
       z-index: 99;
+    }
+
+    /* ── Mobile (≤600px) ─────────────────────────────── */
+    @media (max-width: 600px) {
+      body {
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 8px 0;
+      }
+      h1 {
+        font-size: 18px;
+        margin-bottom: 8px;
+      }
+      #gameWrap {
+        width: 100%;
+        padding: 0 6px;
+      }
+      #gameCanvas {
+        width: 100%;
+        height: auto;
+      }
+      #instructions {
+        font-size: 11px;
+        margin-top: 8px;
+        padding: 0 6px;
+      }
+      #volumePanel {
+        min-width: 0;
+        width: calc(100vw - 32px);
+        padding: 18px 16px;
+      }
+    }
+
+    /* ── Tablet (601px–900px) ────────────────────────── */
+    @media (min-width: 601px) and (max-width: 900px) {
+      h1 { font-size: 20px; }
+      #gameCanvas {
+        width: min(90vw, 634px);
+        height: auto;
+      }
     }
   </style>
 </head>
@@ -1123,7 +1169,7 @@
   // ═══════════════════════════════════════════════════════════════
   // INPUT
   // ═══════════════════════════════════════════════════════════════
-  canvas.addEventListener('click', function(e) {
+  canvas.addEventListener('pointerdown', function(e) {
     const rect = canvas.getBoundingClientRect();
     const px = (e.clientX - rect.left) * (CW / rect.width);
     const py = (e.clientY - rect.top)  * (CH / rect.height);
@@ -1187,10 +1233,10 @@
     getACtx(); // unlock Web Audio API context
     applyBGMVolume();
     bgmEl.play().catch(() => {});
-    document.removeEventListener('click', startAudio);
+    document.removeEventListener('pointerdown', startAudio);
     document.removeEventListener('keydown', startAudio);
   }
-  document.addEventListener('click', startAudio);
+  document.addEventListener('pointerdown', startAudio);
   document.addEventListener('keydown', startAudio);
 
   initGame();
