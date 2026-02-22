@@ -9,11 +9,32 @@
     body {
       background: #1a3a1a;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
       font-family: Arial, sans-serif;
+      gap: 0;
+    }
+    /* Ad column — visible only when viewport is wide enough */
+    .ad-col {
+      width: 160px;
+      min-width: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    /* Hide ads on narrow screens so game stays intact */
+    @media (max-width: 1020px) { .ad-col { display: none; } }
+    /* Center column holds title + canvas + instructions */
+    #gameWrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      padding: 0 16px;
     }
     h1 {
       color: #a5d6a7;
@@ -37,13 +58,129 @@
       text-align: center;
       opacity: 0.8;
     }
+    /* Volume control panel */
+    #volumePanel {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(27,70,27,0.97);
+      border: 2px solid #4caf50;
+      border-radius: 14px;
+      padding: 24px 28px;
+      z-index: 100;
+      min-width: 280px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      color: #fff;
+    }
+    #volumePanel h2 {
+      text-align: center;
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #a5d6a7;
+      letter-spacing: 0.08em;
+    }
+    .vol-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .vol-label {
+      width: 42px;
+      font-size: 13px;
+      color: #c8e6c9;
+    }
+    .vol-row input[type=range] {
+      flex: 1;
+      accent-color: #4caf50;
+      height: 4px;
+      cursor: pointer;
+    }
+    .mute-btn {
+      background: #2e7d32;
+      border: 1px solid #66bb6a;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 16px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mute-btn.muted { background: #555; border-color: #888; }
+    #volClose {
+      display: block;
+      margin: 8px auto 0;
+      background: #43a047;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 32px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    #volClose:hover { background: #388e3c; }
+    #volOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 99;
+    }
   </style>
 </head>
 <body>
-  <h1>🌸 Flower Lines 🌸</h1>
-  <canvas id="gameCanvas"></canvas>
-  <p id="instructions">Click a flower to select it, then click an empty cell to move &nbsp;·&nbsp; Line up 5 of the same color to score</p>
+  <!-- Left ad column -->
+  <div class="ad-col">
+    <ins class="adsbygoogle"
+         style="display:inline-block;width:160px;height:600px"
+         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+         data-ad-slot="XXXXXXXXXX"></ins>
+  </div>
+
+  <!-- Center: game -->
+  <div id="gameWrap">
+    <h1>🌸 Flower Lines 🌸</h1>
+    <canvas id="gameCanvas"></canvas>
+    <p id="instructions">Click a flower to select it, then click an empty cell to move &nbsp;·&nbsp; Line up 5 of the same color to score</p>
+  </div>
+
+  <!-- Right ad column -->
+  <div class="ad-col">
+    <ins class="adsbygoogle"
+         style="display:inline-block;width:160px;height:600px"
+         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+         data-ad-slot="XXXXXXXXXX"></ins>
+  </div>
+  <!-- BGM -->
   <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
+  <!-- SFX -->
+  <audio id="sfx_select"   src="sfx_select.wav"   preload="auto"></audio>
+  <audio id="sfx_move"     src="sfx_move.wav"     preload="auto"></audio>
+  <audio id="sfx_eliminate" src="sfx_eliminate.wav" preload="auto"></audio>
+  <audio id="sfx_gameover" src="sfx_gameover.wav" preload="auto"></audio>
+
+  <!-- Volume control panel -->
+  <div id="volOverlay"></div>
+  <div id="volumePanel">
+    <h2>🔊 Volume Settings</h2>
+    <div class="vol-row">
+      <span class="vol-label">BGM</span>
+      <input type="range" id="bgmSlider" min="0" max="1" step="0.01">
+      <button class="mute-btn" id="bgmMute">🔊</button>
+    </div>
+    <div class="vol-row">
+      <span class="vol-label">SFX</span>
+      <input type="range" id="sfxSlider" min="0" max="1" step="0.01">
+      <button class="mute-btn" id="sfxMute">🔊</button>
+    </div>
+    <button id="volClose">Close</button>
+  </div>
+
   <script>
   // ═══════════════════════════════════════════════════════════════
   // CONSTANTS
@@ -94,8 +231,113 @@
   const PETAL_COUNTS = [5, 6, 8, 4, 6, 5, 7];
 
   // UI button rects (canvas coords)
-  const BTN = { x: 340, y: 12, w: 150, h: 36 }; // restart in score bar
-  const GOB = { x: 142, y: 360, w: 220, h: 50 }; // restart in game-over overlay
+  const BTN     = { x: 340, y: 12, w: 110, h: 36 }; // restart in score bar
+  const VOL_BTN = { x: 458, y: 12, w:  36, h: 36 }; // volume icon in score bar
+  const GOB     = { x: 142, y: 360, w: 220, h: 50 }; // restart in game-over overlay
+
+  // ═══════════════════════════════════════════════════════════════
+  // AUDIO SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  const DEFAULT_VOL = 0.45;
+
+  const audio = {
+    bgm:      document.getElementById('bgm'),
+    select:   document.getElementById('sfx_select'),
+    move:     document.getElementById('sfx_move'),
+    elim:     document.getElementById('sfx_eliminate'),
+    gameover: document.getElementById('sfx_gameover'),
+  };
+
+  const volState = {
+    bgm:     parseFloat(localStorage.getItem('vol_bgm')  ?? DEFAULT_VOL),
+    sfx:     parseFloat(localStorage.getItem('vol_sfx')  ?? DEFAULT_VOL),
+    bgmMuted: localStorage.getItem('vol_bgm_muted') === 'true',
+    sfxMuted: localStorage.getItem('vol_sfx_muted') === 'true',
+    // saved pre-mute levels
+    bgmSaved: parseFloat(localStorage.getItem('vol_bgm') ?? DEFAULT_VOL),
+    sfxSaved: parseFloat(localStorage.getItem('vol_sfx') ?? DEFAULT_VOL),
+  };
+
+  function applyBGMVolume() {
+    audio.bgm.volume = volState.bgmMuted ? 0 : volState.bgm;
+  }
+
+  function playSFX(el) {
+    if (volState.sfxMuted) return;
+    try {
+      el.currentTime = 0;
+      el.volume = volState.sfx;
+      el.play().catch(() => {});
+    } catch(e) {}
+  }
+
+  function playSelect()   { playSFX(audio.select); }
+  function playMove()     { playSFX(audio.move); }
+  function playElim()     { playSFX(audio.elim); }
+  function playGameover() { playSFX(audio.gameover); }
+
+  // ── Volume panel UI ──
+  const panel     = document.getElementById('volumePanel');
+  const overlay   = document.getElementById('volOverlay');
+  const bgmSlider = document.getElementById('bgmSlider');
+  const sfxSlider = document.getElementById('sfxSlider');
+  const bgmMuteBtn = document.getElementById('bgmMute');
+  const sfxMuteBtn = document.getElementById('sfxMute');
+
+  function syncPanelUI() {
+    bgmSlider.value = volState.bgm;
+    sfxSlider.value = volState.sfx;
+    bgmMuteBtn.textContent = volState.bgmMuted ? '🔇' : '🔊';
+    bgmMuteBtn.classList.toggle('muted', volState.bgmMuted);
+    sfxMuteBtn.textContent = volState.sfxMuted ? '🔇' : '🔊';
+    sfxMuteBtn.classList.toggle('muted', volState.sfxMuted);
+  }
+
+  function openVolumePanel() {
+    syncPanelUI();
+    panel.style.display = 'block';
+    overlay.style.display = 'block';
+  }
+
+  function closeVolumePanel() {
+    panel.style.display = 'none';
+    overlay.style.display = 'none';
+  }
+
+  bgmSlider.addEventListener('input', () => {
+    volState.bgm = parseFloat(bgmSlider.value);
+    volState.bgmMuted = false;
+    bgmMuteBtn.textContent = '🔊';
+    bgmMuteBtn.classList.remove('muted');
+    applyBGMVolume();
+    localStorage.setItem('vol_bgm', volState.bgm);
+    localStorage.setItem('vol_bgm_muted', 'false');
+  });
+
+  sfxSlider.addEventListener('input', () => {
+    volState.sfx = parseFloat(sfxSlider.value);
+    volState.sfxMuted = false;
+    sfxMuteBtn.textContent = '🔊';
+    sfxMuteBtn.classList.remove('muted');
+    localStorage.setItem('vol_sfx', volState.sfx);
+    localStorage.setItem('vol_sfx_muted', 'false');
+  });
+
+  bgmMuteBtn.addEventListener('click', () => {
+    volState.bgmMuted = !volState.bgmMuted;
+    applyBGMVolume();
+    syncPanelUI();
+    localStorage.setItem('vol_bgm_muted', volState.bgmMuted);
+  });
+
+  sfxMuteBtn.addEventListener('click', () => {
+    volState.sfxMuted = !volState.sfxMuted;
+    syncPanelUI();
+    localStorage.setItem('vol_sfx_muted', volState.sfxMuted);
+  });
+
+  document.getElementById('volClose').addEventListener('click', closeVolumePanel);
+  overlay.addEventListener('click', closeVolumePanel);
 
   // ═══════════════════════════════════════════════════════════════
   // GAME STATE
@@ -325,7 +567,10 @@
   // ═══════════════════════════════════════════════════════════════
   // GAME INIT / RESTART
   // ═══════════════════════════════════════════════════════════════
+  let gameoverSoundPlayed = false;
+
   function initGame() {
+    gameoverSoundPlayed = false;
     state.board = Array.from({length: GRID_SIZE}, () => new Array(GRID_SIZE).fill(null));
     state.score = 0;
     state.selected = null;
@@ -364,6 +609,7 @@
     state.validMoves = null;
     state.phase = 'ANIMATING';
     state.pendingPhase = 'POST_MOVE';
+    playMove();
 
     pushAnim({
       kind: 'MOVE', type, path, toRow, toCol,
@@ -418,6 +664,7 @@
     state.pendingPhase = nextPending;
     pushAnim({kind: 'ELIMINATE', cells: lines, duration: 450});
     state.animStart = ts;
+    playElim();
   }
 
   function doSpawn(ts) {
@@ -440,6 +687,10 @@
     saveHS();
     state.phase = emptyCells().length === 0 ? 'GAMEOVER' : 'IDLE';
     state.pendingPhase = null;
+    if (state.phase === 'GAMEOVER' && !gameoverSoundPlayed) {
+      gameoverSoundPlayed = true;
+      playGameover();
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -624,6 +875,20 @@
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('New Game', BTN.x + BTN.w/2, BTN.y + BTN.h/2);
+
+    // Volume button
+    ctx.fillStyle = '#2e7d32';
+    roundRect(VOL_BTN.x, VOL_BTN.y, VOL_BTN.w, VOL_BTN.h, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#81c784';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.font = '18px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(volState.bgmMuted && volState.sfxMuted ? '🔇' : '🔊',
+                 VOL_BTN.x + VOL_BTN.w/2, VOL_BTN.y + VOL_BTN.h/2 + 1);
+
     ctx.textAlign = 'left';
   }
 
@@ -759,6 +1024,7 @@
     // Score bar
     if (py < GRID_TOP) {
       if (px >= BTN.x && px <= BTN.x+BTN.w && py >= BTN.y && py <= BTN.y+BTN.h) initGame();
+      else if (px >= VOL_BTN.x && px <= VOL_BTN.x+VOL_BTN.w && py >= VOL_BTN.y && py <= VOL_BTN.y+VOL_BTN.h) openVolumePanel();
       return;
     }
 
@@ -788,6 +1054,7 @@
         state.selected = {row, col};
         state.validMoves = bfsReachable(state.board, row, col);
         state.phase = 'SELECTED';
+        playSelect();
       }
     } else if (state.phase === 'SELECTED') {
       const key = `${row},${col}`;
@@ -806,9 +1073,9 @@
   }
 
   // Start BGM on first user interaction (browser autoplay policy)
-  const bgm = document.getElementById('bgm');
   function startBGM() {
-    bgm.play().catch(() => {});
+    applyBGMVolume();
+    audio.bgm.play().catch(() => {});
     document.removeEventListener('click', startBGM);
     document.removeEventListener('keydown', startBGM);
   }
@@ -817,6 +1084,14 @@
 
   initGame();
   requestAnimationFrame(gameLoop);
+  </script>
+
+  <!-- Google AdSense — replace ca-pub-XXXXXXXXXXXXXXXX and slot IDs with your real values -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+     crossorigin="anonymous"></script>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+    (adsbygoogle = window.adsbygoogle || []).push({});
   </script>
 </body>
 </html>
