@@ -1,0 +1,251 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* AppDelegate.swift */; };
+		A002 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* SceneDelegate.swift */; };
+		A003 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* ViewController.swift */; };
+		A010 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F010 /* GameState.swift */; };
+		A011 /* AnimationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F011 /* AnimationQueue.swift */; };
+		A012 /* GameLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = F012 /* GameLogic.swift */; };
+		A020 /* LayoutCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F020 /* LayoutCalculator.swift */; };
+		A030 /* ScoreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F030 /* ScoreStore.swift */; };
+		A040 /* SoundEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = F040 /* SoundEffect.swift */; };
+		A041 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F041 /* AudioManager.swift */; };
+		A050 /* AdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F050 /* AdManager.swift */; };
+		A060 /* FlowerRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F060 /* FlowerRenderer.swift */; };
+		A061 /* GridRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F061 /* GridRenderer.swift */; };
+		A062 /* SidebarRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F062 /* SidebarRenderer.swift */; };
+		A063 /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F063 /* GameView.swift */; };
+		A070 /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F070 /* VolumeControlView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		F003 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		F010 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
+		F011 /* AnimationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationQueue.swift; sourceTree = "<group>"; };
+		F012 /* GameLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameLogic.swift; sourceTree = "<group>"; };
+		F020 /* LayoutCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutCalculator.swift; sourceTree = "<group>"; };
+		F030 /* ScoreStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreStore.swift; sourceTree = "<group>"; };
+		F040 /* SoundEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundEffect.swift; sourceTree = "<group>"; };
+		F041 /* AudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
+		F050 /* AdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
+		F060 /* FlowerRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowerRenderer.swift; sourceTree = "<group>"; };
+		F061 /* GridRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridRenderer.swift; sourceTree = "<group>"; };
+		F062 /* SidebarRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRenderer.swift; sourceTree = "<group>"; };
+		F063 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
+		F070 /* VolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeControlView.swift; sourceTree = "<group>"; };
+		FPLIST /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FAPP /* FlowerLines.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlowerLines.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		ROOTGROUP = {
+			isa = PBXGroup;
+			children = (GFLOWER, GPRODUCTS);
+			sourceTree = "<group>";
+		};
+		GPRODUCTS = {
+			isa = PBXGroup;
+			children = (FAPP);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		GFLOWER = {
+			isa = PBXGroup;
+			children = (F001, F002, F003, GGAME, GLAYOUT, GPERSIST, GAUDIO, GADS, GRENDERING, GUI, FRESOURCES);
+			path = FlowerLines;
+			sourceTree = "<group>";
+		};
+		GGAME = {
+			isa = PBXGroup;
+			children = (F010, F011, F012);
+			path = Game;
+			sourceTree = "<group>";
+		};
+		GLAYOUT = {
+			isa = PBXGroup;
+			children = (F020);
+			path = Layout;
+			sourceTree = "<group>";
+		};
+		GPERSIST = {
+			isa = PBXGroup;
+			children = (F030);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		GAUDIO = {
+			isa = PBXGroup;
+			children = (F040, F041);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		GADS = {
+			isa = PBXGroup;
+			children = (F050);
+			path = Ads;
+			sourceTree = "<group>";
+		};
+		GRENDERING = {
+			isa = PBXGroup;
+			children = (F060, F061, F062, F063);
+			path = Rendering;
+			sourceTree = "<group>";
+		};
+		GUI = {
+			isa = PBXGroup;
+			children = (F070);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		FRESOURCES = {
+			isa = PBXGroup;
+			children = (FPLIST);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		TARGET1 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BCLLIST;
+			buildPhases = (SRCSPHASE,);
+			buildRules = ();
+			dependencies = ();
+			name = FlowerLines;
+			productName = FlowerLines;
+			productReference = FAPP;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		PROJECT = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				ORGANIZATIONNAME = "Flower Lines";
+			};
+			buildConfigurationList = PROJBCL;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = ROOTGROUP;
+			productRefGroup = GPRODUCTS;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (TARGET1,);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		SRCSPHASE = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A001, A002, A003,
+				A010, A011, A012,
+				A020, A030,
+				A040, A041, A050,
+				A060, A061, A062, A063,
+				A070,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BC_DEBUG = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INFOPLIST_FILE = FlowerLines/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flowerlines.app;
+				PRODUCT_NAME = FlowerLines;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BC_RELEASE = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GCC_NO_COMMON_BLOCKS = YES;
+				INFOPLIST_FILE = FlowerLines/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flowerlines.app;
+				PRODUCT_NAME = FlowerLines;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		PROJ_DEBUG = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		PROJ_RELEASE = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BCLLIST = {
+			isa = XCConfigurationList;
+			buildConfigurations = (BC_DEBUG, BC_RELEASE);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		PROJBCL = {
+			isa = XCConfigurationList;
+			buildConfigurations = (PROJ_DEBUG, PROJ_RELEASE);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = PROJECT;
+}
