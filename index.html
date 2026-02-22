@@ -236,45 +236,106 @@
   const GOB     = { x: 142, y: 360, w: 220, h: 50 }; // restart in game-over overlay
 
   // ═══════════════════════════════════════════════════════════════
-  // AUDIO SYSTEM
+  // AUDIO SYSTEM  (Web Audio API — no external files needed)
   // ═══════════════════════════════════════════════════════════════
   const DEFAULT_VOL = 0.45;
 
-  const audio = {
-    bgm:      document.getElementById('bgm'),
-    select:   document.getElementById('sfx_select'),
-    move:     document.getElementById('sfx_move'),
-    elim:     document.getElementById('sfx_eliminate'),
-    gameover: document.getElementById('sfx_gameover'),
-  };
-
   const volState = {
-    bgm:     parseFloat(localStorage.getItem('vol_bgm')  ?? DEFAULT_VOL),
-    sfx:     parseFloat(localStorage.getItem('vol_sfx')  ?? DEFAULT_VOL),
+    bgm:      parseFloat(localStorage.getItem('vol_bgm') ?? DEFAULT_VOL),
+    sfx:      parseFloat(localStorage.getItem('vol_sfx') ?? DEFAULT_VOL),
     bgmMuted: localStorage.getItem('vol_bgm_muted') === 'true',
     sfxMuted: localStorage.getItem('vol_sfx_muted') === 'true',
-    // saved pre-mute levels
-    bgmSaved: parseFloat(localStorage.getItem('vol_bgm') ?? DEFAULT_VOL),
-    sfxSaved: parseFloat(localStorage.getItem('vol_sfx') ?? DEFAULT_VOL),
   };
 
+  // ── BGM (HTML audio element, loops) ──
+  const bgmEl = document.getElementById('bgm');
   function applyBGMVolume() {
-    audio.bgm.volume = volState.bgmMuted ? 0 : volState.bgm;
+    bgmEl.volume = volState.bgmMuted ? 0 : volState.bgm;
   }
 
-  function playSFX(el) {
+  // ── SFX via Web Audio API (synthesised, no files) ──
+  let actx = null;
+  function getACtx() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    return actx;
+  }
+
+  // Utility: play a frequency-sweep bubble pop
+  // freq: start Hz, endFreq: end Hz, dur: seconds, type: oscillator waveform
+  function bubblePop(freq, endFreq, dur, type, vol) {
+    const ac = getACtx();
+    const gain = ac.createGain();
+    gain.connect(ac.destination);
+    gain.gain.setValueAtTime(vol, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+
+    const osc = ac.createOscillator();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, ac.currentTime + dur);
+    osc.connect(gain);
+    osc.start();
+    osc.stop(ac.currentTime + dur);
+  }
+
+  function sfxVol() { return volState.sfxMuted ? 0 : volState.sfx * 0.4; }
+
+  // Select: short rising bubble pop
+  function playSelect() {
     if (volState.sfxMuted) return;
-    try {
-      el.currentTime = 0;
-      el.volume = volState.sfx;
-      el.play().catch(() => {});
-    } catch(e) {}
+    bubblePop(320, 640, 0.12, 'sine', sfxVol());
   }
 
-  function playSelect()   { playSFX(audio.select); }
-  function playMove()     { playSFX(audio.move); }
-  function playElim()     { playSFX(audio.elim); }
-  function playGameover() { playSFX(audio.gameover); }
+  // Move: quick rising whistle
+  function playMove() {
+    if (volState.sfxMuted) return;
+    const v = sfxVol();
+    bubblePop(200, 800, 0.18, 'sine', v);
+  }
+
+  // Eliminate: cascade of 3 pops with slight delay
+  function playElim() {
+    if (volState.sfxMuted) return;
+    const v = sfxVol();
+    const ac = getACtx();
+    [0, 0.07, 0.14].forEach((delay, i) => {
+      const freq = 500 + i * 120;
+      const gain = ac.createGain();
+      gain.connect(ac.destination);
+      gain.gain.setValueAtTime(0, ac.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(v, ac.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + delay + 0.22);
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ac.currentTime + delay);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ac.currentTime + delay + 0.22);
+      osc.connect(gain);
+      osc.start(ac.currentTime + delay);
+      osc.stop(ac.currentTime + delay + 0.25);
+    });
+  }
+
+  // Gameover: descending cascade of 4 pops
+  function playGameover() {
+    if (volState.sfxMuted) return;
+    const v = sfxVol();
+    const ac = getACtx();
+    [0, 0.12, 0.24, 0.38].forEach((delay, i) => {
+      const freq = 600 - i * 100;
+      const gain = ac.createGain();
+      gain.connect(ac.destination);
+      gain.gain.setValueAtTime(0, ac.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(v * 1.2, ac.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + delay + 0.28);
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ac.currentTime + delay);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.35, ac.currentTime + delay + 0.28);
+      osc.connect(gain);
+      osc.start(ac.currentTime + delay);
+      osc.stop(ac.currentTime + delay + 0.3);
+    });
+  }
 
   // ── Volume panel UI ──
   const panel     = document.getElementById('volumePanel');
@@ -1072,15 +1133,16 @@
     requestAnimationFrame(gameLoop);
   }
 
-  // Start BGM on first user interaction (browser autoplay policy)
-  function startBGM() {
+  // Start BGM + unlock AudioContext on first user interaction (browser autoplay policy)
+  function startAudio() {
+    getACtx(); // unlock Web Audio API context
     applyBGMVolume();
-    audio.bgm.play().catch(() => {});
-    document.removeEventListener('click', startBGM);
-    document.removeEventListener('keydown', startBGM);
+    bgmEl.play().catch(() => {});
+    document.removeEventListener('click', startAudio);
+    document.removeEventListener('keydown', startAudio);
   }
-  document.addEventListener('click', startBGM);
-  document.addEventListener('keydown', startBGM);
+  document.addEventListener('click', startAudio);
+  document.addEventListener('keydown', startAudio);
 
   initGame();
   requestAnimationFrame(gameLoop);
