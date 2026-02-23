@@ -13,8 +13,10 @@ if ! command -v pod >/dev/null 2>&1; then
     sudo gem install cocoapods --no-document
 fi
 
-# CI_WORKSPACE is the directory containing the .xcworkspace
-cd "$CI_WORKSPACE"
+# CI_WORKSPACE is the full path to the .xcworkspace file, e.g.:
+#   /Volumes/workspace/repository/ios/FlowerLines.xcworkspace
+# So we need dirname to get the ios/ directory where Podfile lives.
+cd "$(dirname "$CI_WORKSPACE")"
 
 pod install --repo-update
 
