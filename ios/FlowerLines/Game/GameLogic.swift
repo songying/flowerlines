@@ -119,8 +119,7 @@ class GameLogic {
         guard let state = state else { return }
         guard state.phase != .animating, state.phase != .gameover else { return }
 
-        let type = state.board[row][col]
-        if let type = type {
+        if state.board[row][col] != nil {
             if let sel = state.selected, sel.row == row, sel.col == col {
                 state.selected = nil; state.validMoves = nil; state.phase = .idle
             } else {

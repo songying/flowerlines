@@ -86,7 +86,7 @@ class AdManager: NSObject, FullScreenContentDelegate {
         countdownView = overlay
 
         var count = 3
-        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] t in
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { t in
             count -= 1
             if count > 0 {
                 label.text = "\(count)"
