@@ -1,13 +1,13 @@
 import UIKit
 import GoogleMobileAds
 
-class AdManager: NSObject, GADFullScreenContentDelegate {
+class AdManager: NSObject, FullScreenContentDelegate {
     static let shared = AdManager()
 
     // Use test ID during development — replace before App Store submission
     private let adUnitID = "ca-app-pub-3940256099942544/1033173712"
 
-    private var interstitial: GADInterstitialAd?
+    private var interstitial: InterstitialAd?
     private var onFinished: (() -> Void)?
     private var countdownView: UIView?
 
@@ -16,7 +16,7 @@ class AdManager: NSObject, GADFullScreenContentDelegate {
     func setup() { loadAd() }
 
     func loadAd() {
-        GADInterstitialAd.load(withAdUnitID: adUnitID, request: GADRequest()) { [weak self] ad, error in
+        InterstitialAd.load(with: adUnitID, request: Request()) { [weak self] ad, error in
             if let error = error {
                 print("[Ad] Load failed: \(error)")
                 return
@@ -35,7 +35,7 @@ class AdManager: NSObject, GADFullScreenContentDelegate {
             return
         }
         self.onFinished = onFinished
-        ad.present(fromRootViewController: vc)
+        ad.present(from: vc)
         if let window = vc.view.window {
             showCountdownOverlay(in: window, onSkip: { [weak self] in
                 self?.finish()
@@ -111,12 +111,12 @@ class AdManager: NSObject, GADFullScreenContentDelegate {
     }
 
     // MARK: - GADFullScreenContentDelegate
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         finish()
         loadAd()
     }
 
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         finish()
         loadAd()
     }

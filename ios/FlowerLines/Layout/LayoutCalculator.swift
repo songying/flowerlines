@@ -45,29 +45,28 @@ struct Layout {
 }
 
 func calculateLayout(bounds: CGRect, safeAreaInsets: UIEdgeInsets) -> Layout {
-    let usableW = bounds.width  - safeAreaInsets.left - safeAreaInsets.right
-    let usableH = bounds.height - safeAreaInsets.top  - safeAreaInsets.bottom
+    // Grid fills 100% of screen width; no sidebar
+    let screenW  = bounds.width
+    let usableH  = bounds.height - safeAreaInsets.top - safeAreaInsets.bottom
 
-    let cellFromWidth  = usableW / (CGFloat(GRID_SIZE) + 130.0/56.0)
-    let cellFromHeight = usableH / (CGFloat(GRID_SIZE) + 60.0/56.0)
-    let cellSize = min(cellFromWidth, cellFromHeight)
+    let cellSize = screenW / CGFloat(GRID_SIZE)
     let scale    = cellSize / 56.0
 
-    let sidebarWidth  = 130.0 * scale
+    let sidebarWidth: CGFloat = 0
     let headerHeight  = 60.0  * scale
     let gridWidth     = cellSize * CGFloat(GRID_SIZE)
     let totalWidth    = gridWidth + sidebarWidth
     let totalHeight   = headerHeight + cellSize * CGFloat(GRID_SIZE)
 
-    let offsetX = safeAreaInsets.left + (usableW - totalWidth)  / 2
-    let offsetY = safeAreaInsets.top  + (usableH - totalHeight) / 2
+    let offsetX: CGFloat = 0
+    let offsetY = safeAreaInsets.top + max((usableH - totalHeight) / 2, 0)
 
     return Layout(
         cellSize: cellSize, scale: scale,
         flowerRadius: 20 * scale, sidebarFlowerRadius: 22 * scale,
         headerHeight: headerHeight, sidebarWidth: sidebarWidth,
         gridWidth: gridWidth, totalWidth: totalWidth, totalHeight: totalHeight,
-        offsetX: max(offsetX, safeAreaInsets.left),
-        offsetY: max(offsetY, safeAreaInsets.top)
+        offsetX: offsetX,
+        offsetY: offsetY
     )
 }

@@ -86,6 +86,8 @@ class ViewController: UIViewController {
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
+    override var shouldAutorotate: Bool { false }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)

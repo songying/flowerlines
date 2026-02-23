@@ -53,9 +53,7 @@ class GameView: UIView {
         let L = layout
         let state = gameState!
 
-        // 1. Sidebar
-        SidebarRenderer(layout: L, state: state).drawSidebar(ctx: ctx, ts: ts)
-        // 2. Grid
+        // 1. Grid
         GridRenderer(layout: L, state: state).drawGrid(ctx: ctx)
         // 3. Highlights
         GridRenderer(layout: L, state: state).drawHighlights(ctx: ctx)
