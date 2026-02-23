@@ -1,5 +1,4 @@
 # Xcode
-*.xcworkspace
 xcuserdata/
 *.xccheckout
 *.moved-aside
@@ -9,9 +8,8 @@ DerivedData/
 *.xcuserstate
 *.xcscmblueprint
 
-# CocoaPods
+# CocoaPods - keep Pods/ ignored but track the workspace
 Pods/
-*.xcworkspace
 
 # Build
 build/
